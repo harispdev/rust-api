@@ -1,20 +1,20 @@
-mod config;
-mod errors;
-mod handlers;
-mod models;
+mod common;
+mod modules;
 mod routes;
-mod state;
 
 use anyhow::Result;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
+use dotenvy::dotenv;
 
-use config::Config;
+use common::{Config, Database, AppState, session::create_session_layer};
 use routes::create_router;
-use state::AppState;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Load environment variables from .env file
+    dotenv().ok();
+    
     // Load configuration
     let config = Config::from_env();
     
@@ -30,11 +30,22 @@ async fn main() -> Result<()> {
     info!("Starting Rust API server...");
     info!("Configuration: {:?}", config);
 
-    // Create application state
-    let state = AppState::new();
+    // Initialize database
+    let database = Database::new(&config.database).await?;
 
-    // Create the router
-    let app = create_router(state);
+    // Test database connection
+    database.health_check().await?;
+    info!("✅ Database connection verified");
+
+    // Create application state
+    let state = AppState::new(database);
+
+    // Create session layer
+    let session_layer = create_session_layer(&config.session).await;
+    
+    // Create the router with session middleware
+    let app = create_router(state)
+        .layer(session_layer);
 
     // Start the server
     let address = config.server_address();
@@ -42,6 +53,7 @@ async fn main() -> Result<()> {
     
     info!("🚀 Server running on http://{}", address);
     info!("📚 Health check available at http://{}/health", address);
+    info!("🗄️  Database connected and migrations applied");
     
     axum::serve(listener, app).await?;
     

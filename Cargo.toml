@@ -7,7 +7,7 @@ edition = "2021"
 axum = "0.7"
 tokio = { version = "1.0", features = ["full"] }
 tower = "0.4"
-tower-http = { version = "0.5", features = ["cors"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tracing = "0.1"
@@ -15,3 +15,28 @@ tracing-subscriber = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "1.0"
 anyhow = "1.0"
+
+# Database dependencies - SeaORM
+sea-orm = { version = "0.12", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-chrono", "with-uuid"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Validation
+validator = { version = "0.18", features = ["derive"] }
+
+# Environment management
+dotenvy = "0.15"
+
+# Password hashing
+argon2 = "0.5"
+
+# Session management
+tower-sessions = "0.9"
+tower-sessions-redis-store = "0.9"
+fred = "7.1"
+
+# API documentation
+utoipa = { version = "5.0", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "7.0", features = ["axum"] }
+
+# Async traits
+async-trait = "0.1"

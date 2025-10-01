@@ -1,0 +1,522 @@
+# Rust API Project - Cursor Rules
+
+## Project Overview
+This is a Rust-based REST API using Axum web framework with PostgreSQL database and Redis session storage, following Clean Architecture principles with layered modules and session-based authentication.
+
+## Project Structure
+
+### Core Architecture
+```
+src/
+├── main.rs                 # Application entry point
+├── common/                 # Shared utilities and infrastructure
+│   ├── config.rs          # Configuration management
+│   ├── database/          # Database connection and setup
+│   ├── errors/            # Custom error types and handling
+│   ├── repositories/      # Base repository traits
+│   ├── session/           # Session management with Redis
+│   └── state/             # Application state management
+├── modules/               # Feature modules (business logic)
+│   ├── auth/              # Authentication module
+│   │   ├── entity.rs      # Auth DTOs and user info
+│   │   ├── controller.rs  # Login/logout/register handlers
+│   │   ├── service.rs     # Auth business logic
+│   │   ├── repository.rs  # Auth data access
+│   │   ├── middleware.rs  # Authentication middleware
+│   │   └── route.rs       # Auth route definitions
+│   └── {module_name}/     # Each module follows this structure:
+│       ├── entity.rs      # Data models, DTOs, and validation
+│       ├── repository.rs  # Database operations
+│       ├── service.rs     # Business logic layer
+│       ├── controller.rs  # HTTP request handlers
+│       ├── route.rs       # Route definitions
+│       └── mod.rs         # Module exports
+└── routes/                # Main router configuration
+    └── mod.rs             # Route aggregation
+```
+
+## Authentication & Session Management
+
+### Session-Based Authentication
+- **Session Storage**: Redis-backed sessions using `tower-sessions`
+- **Cookie Security**: HTTP-only cookies with SameSite protection
+- **Session Flow**: Login → Session created → Cookie set → Protected routes validated
+- **Logout**: Session cleared → Cookie invalidated
+
+### User Context
+- **User Info**: Stored in request extensions after authentication
+- **Session Data**: Contains user information for request context
+- **Middleware**: Authentication middleware validates sessions
+
+## Module Creation Guidelines
+
+### When creating a new module (e.g., `product`):
+
+1. **Create module directory**: `src/modules/product/`
+2. **Create required files**:
+   - `mod.rs` - Module exports
+   - `entity.rs` - Data models and DTOs
+   - `repository.rs` - Database operations
+   - `service.rs` - Business logic
+   - `controller.rs` - HTTP handlers
+   - `route.rs` - Route definitions
+
+### Module File Templates
+
+#### `src/modules/{module_name}/mod.rs`
+```rust
+pub mod entity;
+pub mod controller;
+pub mod service;
+pub mod repository;
+pub mod route;
+```
+
+#### `src/modules/{module_name}/entity.rs`
+```rust
+use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize, Serializer};
+use uuid::Uuid;
+use validator::Validate;
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Deserialize)]
+#[sea_orm(table_name = "{table_name}")]
+pub struct Model {
+    #[sea_orm(primary_key)]
+    pub id: Uuid,
+    pub account_id: Uuid,  // Required for multi-tenancy
+    pub branch_id: Option<Uuid>,  // Optional branch context
+    // Add your fields here
+    pub created_at: DateTimeWithTimeZone,
+    pub updated_at: DateTimeWithTimeZone,
+    pub deleted_at: Option<DateTimeWithTimeZone>,  // Soft delete
+}
+
+impl Serialize for Model {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("{EntityName}", {field_count})?;
+        // Add field serialization here
+        state.serialize_field("id", &self.id)?;
+        state.serialize_field("account_id", &self.account_id)?;
+        state.serialize_field("branch_id", &self.branch_id)?;
+        state.serialize_field("created_at", &self.created_at)?;
+        state.serialize_field("updated_at", &self.updated_at)?;
+        state.end()
+    }
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {}
+
+impl ActiveModelBehavior for ActiveModel {}
+
+// Request/Response DTOs
+#[derive(Debug, Deserialize, Serialize, Validate)]
+pub struct Create{EntityName}Request {
+    pub account_id: Uuid,
+    pub branch_id: Option<Uuid>,
+    // Add validation rules
+}
+
+#[derive(Debug, Deserialize, Serialize, Validate)]
+pub struct Update{EntityName}Request {
+    // Add optional fields with validation
+}
+```
+
+#### `src/modules/{module_name}/repository.rs`
+```rust
+use anyhow::Result;
+use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, QueryOrder};
+use uuid::Uuid;
+use tracing::{info, error};
+
+use crate::{
+    modules::{module_name}::entity::{Entity as {EntityName}Entity, Model as {EntityName}, Create{EntityName}Request, Update{EntityName}Request, Column, ActiveModel},
+    common::ApiError,
+};
+
+#[derive(Debug, Clone)]
+pub struct {EntityName}Repository {
+    db: DatabaseConnection,
+}
+
+impl {EntityName}Repository {
+    pub fn new(db: DatabaseConnection) -> Self {
+        Self { db }
+    }
+
+    // Implement CRUD operations with soft delete support
+    pub async fn get_all(&self) -> Result<Vec<{EntityName}>, ApiError> {
+        // Implementation with soft delete filter
+    }
+
+    pub async fn get_by_id(&self, id: Uuid) -> Result<{EntityName}, ApiError> {
+        // Implementation with soft delete filter
+    }
+
+    pub async fn create(&self, request: Create{EntityName}Request) -> Result<{EntityName}, ApiError> {
+        // Implementation
+    }
+
+    pub async fn update(&self, id: Uuid, request: Update{EntityName}Request) -> Result<{EntityName}, ApiError> {
+        // Implementation
+    }
+
+    pub async fn delete(&self, id: Uuid) -> Result<(), ApiError> {
+        // Soft delete implementation
+    }
+}
+```
+
+#### `src/modules/{module_name}/service.rs`
+```rust
+use anyhow::Result;
+use uuid::Uuid;
+use tracing::info;
+
+use crate::{
+    common::ApiError,
+    modules::{module_name}::{
+        entity::{Create{EntityName}Request, Update{EntityName}Request, Model as {EntityName}},
+        repository::{EntityName}Repository,
+    },
+};
+
+#[derive(Debug, Clone)]
+pub struct {EntityName}Service {
+    repository: {EntityName}Repository,
+}
+
+impl {EntityName}Service {
+    pub fn new(repository: {EntityName}Repository) -> Self {
+        Self { repository }
+    }
+
+    // Implement business logic methods
+    pub async fn get_all(&self) -> Result<Vec<{EntityName}>, ApiError> {
+        self.repository.get_all().await
+    }
+
+    pub async fn get_by_id(&self, id: Uuid) -> Result<{EntityName}, ApiError> {
+        self.repository.get_by_id(id).await
+    }
+
+    pub async fn create(&self, data: Create{EntityName}Request) -> Result<{EntityName}, ApiError> {
+        // Add business logic validation here
+        self.repository.create(data).await
+    }
+
+    pub async fn update(&self, id: Uuid, data: Update{EntityName}Request) -> Result<{EntityName}, ApiError> {
+        // Add business logic validation here
+        self.repository.update(id, data).await
+    }
+
+    pub async fn delete(&self, id: Uuid) -> Result<(), ApiError> {
+        self.repository.delete(id).await
+    }
+}
+```
+
+#### `src/modules/{module_name}/controller.rs`
+```rust
+use axum::{
+    extract::{Path, State},
+    Json,
+};
+use tracing::info;
+use uuid::Uuid;
+use validator::Validate;
+
+use crate::{
+    common::ApiError,
+    modules::{module_name}::entity::{Create{EntityName}Request, Update{EntityName}Request, Model as {EntityName}},
+    common::AppState,
+};
+
+pub async fn get_all(State(state): State<AppState>) -> Result<Json<Vec<{EntityName}>>, ApiError> {
+    info!("Fetching all {module_name}s");
+    let result = state.{module_name}_service.get_all().await?;
+    Ok(Json(result))
+}
+
+pub async fn get_by_id(
+    Path(id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> Result<Json<{EntityName}>, ApiError> {
+    info!("Fetching {module_name} with ID: {}", id);
+    let result = state.{module_name}_service.get_by_id(id).await?;
+    Ok(Json(result))
+}
+
+pub async fn create(
+    State(state): State<AppState>,
+    Json(payload): Json<Create{EntityName}Request>,
+) -> Result<Json<{EntityName}>, ApiError> {
+    info!("Creating new {module_name}");
+    
+    payload.validate()
+        .map_err(|e| ApiError::InvalidInput(format!("Validation error: {}", e)))?;
+    
+    let result = state.{module_name}_service.create(payload).await?;
+    Ok(Json(result))
+}
+
+pub async fn update(
+    Path(id): Path<Uuid>,
+    State(state): State<AppState>,
+    Json(payload): Json<Update{EntityName}Request>,
+) -> Result<Json<{EntityName}>, ApiError> {
+    info!("Updating {module_name} with ID: {}", id);
+    
+    payload.validate()
+        .map_err(|e| ApiError::InvalidInput(format!("Validation error: {}", e)))?;
+    
+    let result = state.{module_name}_service.update(id, payload).await?;
+    Ok(Json(result))
+}
+
+pub async fn delete_{module_name}(
+    Path(id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> Result<(), ApiError> {
+    info!("Deleting {module_name} with ID: {}", id);
+    state.{module_name}_service.delete(id).await
+}
+```
+
+#### `src/modules/{module_name}/route.rs`
+```rust
+use axum::{
+    routing::{get, post, put, delete},
+    Router, middleware,
+};
+
+use crate::common::AppState;
+use crate::modules::auth::middleware::authenticate;
+use super::controller::*;
+
+pub fn create_routes() -> Router<AppState> {
+    Router::new()
+        .route("/{module_name}s", get(get_all).post(create))
+        .route("/{module_name}s/:id", get(get_by_id).put(update))
+        .route("/{module_name}s/:id", delete(delete_{module_name}))
+        .layer(middleware::from_fn(authenticate))  // Apply auth middleware
+}
+```
+
+## Integration Steps for New Modules
+
+### 1. Add to main router (`src/routes/mod.rs`)
+```rust
+use crate::modules::{module_name}::route::create_routes as create_{module_name}_routes;
+
+pub fn create_router(state: AppState) -> Router {
+    Router::new()
+        .route("/health", get(health_check))
+        .nest("/", create_auth_routes())  // Public auth routes
+        .nest("/", create_user_routes().layer(middleware::from_fn(authenticate)))  // Protected user routes
+        .nest("/", create_{module_name}_routes().layer(middleware::from_fn(authenticate)))  // Protected module routes
+        .with_state(state)
+}
+```
+
+### 2. Add to AppState (`src/common/state/mod.rs`)
+```rust
+use crate::modules::{module_name}::repository::{EntityName}Repository;
+use crate::modules::{module_name}::service::{EntityName}Service;
+
+#[derive(Debug, Clone)]
+pub struct AppState {
+    pub user_service: UserService,
+    pub auth_service: AuthService,
+    pub {module_name}_service: {EntityName}Service,  // Add this line
+}
+
+impl AppState {
+    pub fn new(database: Database) -> Self {
+        let user_repository = UserRepository::new(database.connection().clone());
+        let user_service = UserService::new(user_repository);
+        
+        let auth_repository = AuthRepository::new(database.connection().clone());
+        let auth_service = AuthService::new(auth_repository);
+        
+        let {module_name}_repository = {EntityName}Repository::new(database.connection().clone());
+        let {module_name}_service = {EntityName}Service::new({module_name}_repository);
+
+        Self {
+            user_service,
+            auth_service,
+            {module_name}_service,  // Add this line
+        }
+    }
+}
+```
+
+### 3. Add to modules mod.rs (`src/modules/mod.rs`)
+```rust
+pub mod auth;
+pub mod user;
+pub mod {module_name};  // Add this line
+```
+
+## Code Style Guidelines
+
+### Naming Conventions
+- **Modules**: snake_case (e.g., `user_profile`)
+- **Entities**: PascalCase (e.g., `UserProfile`)
+- **Functions**: snake_case (e.g., `get_user_by_id`)
+- **Constants**: SCREAMING_SNAKE_CASE
+- **Database tables**: snake_case (e.g., `user_profiles`)
+
+### Error Handling
+- Always use `ApiError` for application errors
+- Use `anyhow::Result` for internal operations
+- Log errors with appropriate levels (error, warn, info)
+- Return meaningful error messages to clients
+
+### Validation
+- Use `validator` crate for input validation
+- Add validation rules in DTOs
+- Validate in controllers before passing to services
+- Use descriptive error messages
+
+### Database Operations
+- Always use transactions for multi-step operations
+- Handle database errors gracefully
+- Use proper logging for debugging
+- Follow the repository pattern strictly
+- Implement soft deletes for data integrity
+
+### Logging
+- Use structured logging with `tracing`
+- Log at appropriate levels:
+  - `error!` for errors that need attention
+  - `warn!` for warnings
+  - `info!` for important business events
+  - `debug!` for debugging information
+
+## Dependencies Management
+
+### Required Dependencies (already in Cargo.toml)
+- `axum` - Web framework
+- `tokio` - Async runtime
+- `sea-orm` - Database ORM
+- `serde` - Serialization
+- `uuid` - UUID generation
+- `validator` - Input validation
+- `argon2` - Password hashing
+- `tower-sessions` - Session management
+- `tower-sessions-redis-store` - Redis session store
+- `fred` - Redis client
+- `tracing` - Logging
+- `anyhow` - Error handling
+- `thiserror` - Custom error types
+
+### When adding new features, consider:
+- Do we need new dependencies?
+- Are they compatible with existing ones?
+- Do they follow Rust best practices?
+- Are they actively maintained?
+
+## Security Guidelines
+
+### Input Validation
+- Always validate user input
+- Use strong validation rules
+- Sanitize data before processing
+- Prevent SQL injection (SeaORM handles this)
+
+### Authentication & Authorization
+- Hash passwords with Argon2
+- Use session-based authentication with HTTP-only cookies
+- Implement proper session management
+- Add rate limiting for sensitive endpoints
+- Use Redis for session storage
+
+### Data Protection
+- Never log sensitive data (passwords, tokens)
+- Use environment variables for secrets
+- Implement proper CORS policies
+- Validate all external inputs
+- Use soft deletes for data integrity
+
+### Session Security
+- HTTP-only cookies prevent XSS attacks
+- SameSite attribute prevents CSRF attacks
+- Secure session storage with Redis
+- Session invalidation on logout
+
+## Performance Guidelines
+
+### Database
+- Use proper indexing
+- Implement pagination for large datasets
+- Use connection pooling
+- Optimize queries
+- Use soft deletes efficiently
+
+### Caching
+- Use Redis for session storage
+- Cache frequently accessed data
+- Implement cache invalidation
+- Use appropriate TTL values
+
+### Async Operations
+- Use async/await properly
+- Avoid blocking operations
+- Use proper error handling
+- Implement timeouts
+
+## Documentation
+
+### Code Documentation
+- Document public APIs
+- Use rustdoc comments
+- Provide examples for complex functions
+- Keep documentation up to date
+
+### API Documentation
+- Use OpenAPI/Swagger for API docs
+- Document all endpoints
+- Provide request/response examples
+- Include error codes and messages
+
+## Common Patterns
+
+### Repository Pattern
+- One repository per entity
+- Implement common CRUD operations
+- Use traits for shared functionality
+- Handle database errors consistently
+- Implement soft delete support
+
+### Service Layer
+- Business logic goes in services
+- Services call repositories
+- Handle validation and business rules
+- Keep controllers thin
+
+### Controller Layer
+- Handle HTTP concerns only
+- Validate input
+- Call appropriate services
+- Return proper HTTP responses
+
+### Error Handling
+- Use custom error types
+- Implement proper error responses
+- Log errors appropriately
+- Return user-friendly messages
+
+### Session Management
+- Use `SessionManager` for session operations
+- Store user context in request extensions
+- Validate sessions in middleware
+- Clear sessions on logout
+
+Remember: Follow these patterns consistently across all modules to maintain code quality and readability.

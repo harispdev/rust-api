@@ -1,179 +1,398 @@
-# Rust API Learning Project 🦀
+# Rust REST API with Session Authentication
 
-A beginner-friendly Rust API project with Docker Compose setup to help you learn Rust web development.
+A modern, production-ready Rust REST API built with Axum, SeaORM, PostgreSQL, and Redis, featuring session-based authentication with HTTP-only cookies.
 
-## What You'll Learn
+## 🚀 Features
 
-This project demonstrates:
-- **Basic Rust syntax** and ownership concepts
-- **HTTP server** using the Axum framework
-- **JSON serialization/deserialization** with Serde
-- **Async programming** with Tokio
-- **Docker containerization** for Rust applications
-- **REST API patterns** and error handling
+- **Modern Stack**: Axum 0.7, SeaORM 0.12, PostgreSQL 16, Redis 7
+- **Session Authentication**: HTTP-only cookies with Redis-backed sessions
+- **Type Safety**: Full compile-time type checking with SeaORM
+- **Async/Await**: Built for high-performance async operations
+- **Containerized**: Complete Docker setup with multi-stage builds
+- **Security**: Argon2 password hashing, session management, input validation
+- **Database**: PostgreSQL with automated schema initialization
+- **API Documentation**: Ready for OpenAPI/Swagger integration
+- **Health Checks**: Built-in health monitoring for all services
+- **Logging**: Structured logging with tracing
+- **Clean Architecture**: Modular design with separation of concerns
 
-## Quick Start
+## 🏗️ Architecture
+
+```
+src/
+├── main.rs                 # Application entry point
+├── common/                 # Shared utilities and infrastructure
+│   ├── config.rs          # Configuration management
+│   ├── database/          # Database connection and setup
+│   ├── errors/            # Custom error types and handling
+│   ├── repositories/      # Base repository traits
+│   ├── session/           # Session management with Redis
+│   └── state/             # Application state management
+├── modules/               # Feature modules (business logic)
+│   ├── auth/              # Authentication module
+│   │   ├── entity.rs      # Auth DTOs and user info
+│   │   ├── controller.rs  # Login/logout/register handlers
+│   │   ├── service.rs     # Auth business logic
+│   │   ├── repository.rs  # Auth data access
+│   │   ├── middleware.rs  # Authentication middleware
+│   │   └── route.rs       # Auth route definitions
+│   └── user/              # User management module
+│       ├── entity.rs      # User models and DTOs
+│       ├── controller.rs  # User CRUD handlers
+│       ├── service.rs     # User business logic
+│       ├── repository.rs  # User data access
+│       └── route.rs       # User route definitions
+└── routes/                # Main router configuration
+    └── mod.rs             # Route aggregation
+```
+
+## 🛠️ Tech Stack
+
+- **Web Framework**: Axum 0.7
+- **ORM**: SeaORM 0.12
+- **Database**: PostgreSQL 16
+- **Session Store**: Redis 7
+- **Session Management**: tower-sessions with Redis backend
+- **Async Runtime**: Tokio
+- **Validation**: Validator
+- **Password Hashing**: Argon2
+- **Serialization**: Serde
+- **Logging**: Tracing
+- **Containerization**: Docker & Docker Compose
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- Docker and Docker Compose installed
-- Basic understanding of HTTP APIs (helpful but not required)
 
-### Running the API
+- Rust 1.75+
+- Docker & Docker Compose
 
-1. **Start the application:**
-   ```bash
-   docker-compose up --build
-   ```
-
-2. **Test the API:**
-   ```bash
-   # Health check
-   curl http://localhost:3000/health
-
-   # Get all users
-   curl http://localhost:3000/users
-
-   # Create a user
-   curl -X POST http://localhost:3000/users \
-     -H "Content-Type: application/json" \
-     -d '{"name": "John Doe", "email": "john@example.com"}'
-
-   # Get specific user
-   curl http://localhost:3000/users/1
-   ```
-
-3. **Stop the application:**
-   ```bash
-   docker-compose down
-   ```
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | Welcome message |
-| GET | `/health` | Health check |
-| GET | `/users` | Get all users |
-| POST | `/users` | Create a new user |
-| GET | `/users/:id` | Get user by ID |
-
-## Learning Path
-
-### 1. Understanding the Project Structure
-
-```
-rust-api/
-├── Cargo.toml          # Project configuration and dependencies
-├── src/
-│   └── main.rs         # Main application code
-├── Dockerfile          # Container configuration
-├── docker-compose.yml  # Multi-container setup
-└── README.md           # This file
-```
-
-### 2. Key Rust Concepts in This Project
-
-#### **Ownership and Borrowing**
-```rust
-// Ownership: 'user' owns the data
-let user = User { id: 1, name: "John".to_string(), email: "john@example.com".to_string() };
-
-// Borrowing: '&user' borrows the data without taking ownership
-fn print_user(user: &User) {
-    println!("User: {}", user.name);
-}
-```
-
-#### **Pattern Matching**
-```rust
-match storage.get(&id) {
-    Some(user) => Ok(Json(ApiResponse { /* ... */ })),
-    None => Err(StatusCode::NOT_FOUND),
-}
-```
-
-#### **Error Handling**
-```rust
-// Result type for operations that can fail
-async fn create_user(/* ... */) -> Result<Json<ApiResponse<User>>, StatusCode> {
-    // Success case
-    Ok(Json(ApiResponse { /* ... */ }))
-}
-```
-
-#### **Async/Await**
-```rust
-#[tokio::main]
-async fn main() {
-    // Async main function
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
-}
-```
-
-### 3. Next Steps for Learning
-
-1. **Modify the API:**
-   - Add more fields to the User struct
-   - Implement user update and delete endpoints
-   - Add input validation
-
-2. **Add a Database:**
-   - Uncomment the PostgreSQL service in docker-compose.yml
-   - Add database dependencies (sqlx, diesel, etc.)
-   - Implement persistent storage
-
-3. **Learn More Rust:**
-   - [The Rust Book](https://doc.rust-lang.org/book/) - Official comprehensive guide
-   - [Rust by Example](https://doc.rust-lang.org/rust-by-example/) - Learn by doing
-   - [Axum Documentation](https://docs.rs/axum/) - Web framework docs
-
-## Development Tips
-
-### Running Without Docker
-If you want to run the Rust code directly:
+### 1. Clone and Setup
 
 ```bash
-# Install Rust (if not already installed)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+git clone <your-repo>
+cd rust-api
 
-# Run the application
+# Create environment file
+cp env.example .env
+
+# Edit .env with your settings (optional)
+nano .env
+
+# Start all services
+docker compose up --build -d
+```
+
+### 2. Using Docker (Recommended)
+
+```bash
+# Start all services (PostgreSQL + Redis + API)
+docker compose up --build -d
+
+# Check service status
+docker compose ps
+
+# View logs
+docker compose logs -f
+```
+
+### 3. Using Local Development
+
+```bash
+# Start database services only
+docker compose up -d postgres redis
+
+# Run the API locally
 cargo run
-
-# Run in release mode (optimized)
-cargo run --release
 ```
 
-### Adding Dependencies
-To add new dependencies, edit `Cargo.toml`:
+## 📋 Available Commands
 
-```toml
-[dependencies]
-your-new-dependency = "1.0"
-```
-
-Then rebuild:
 ```bash
-docker-compose up --build
+# Development
+cargo build         # Build the application
+cargo run           # Run locally
+cargo test          # Run tests
+cargo check         # Check compilation
+
+# Docker
+docker compose up --build -d     # Start all services
+docker compose down              # Stop all services
+docker compose down -v           # Stop and remove volumes
+docker compose logs -f           # View logs
+docker compose ps                # Check service status
+
+# Database
+# Database schema is auto-initialized by PostgreSQL init scripts
 ```
 
-### Debugging
-- Add `println!` or `dbg!` macros for debugging
-- Use `tracing` for structured logging (already included)
-- Check logs with: `docker-compose logs rust-api`
+## 🗄️ Database
 
-## Common Rust Patterns You'll See
+### Schema
 
-1. **Option and Result types** for handling null values and errors
-2. **Struct definitions** with derive macros for automatic trait implementations
-3. **Lifetime annotations** (though minimal in this example)
-4. **Closures** and **iterators** for functional programming
-5. **Module system** for organizing code
+The `users` table includes:
+- `id` (UUID, Primary Key)
+- `account_id` (UUID, Required)
+- `branch_id` (UUID, Optional)
+- `name` (VARCHAR, Optional)
+- `email` (VARCHAR, Unique, Required)
+- `password_hash` (VARCHAR, Required)
+- `role` (VARCHAR, Default: 'CUSTOMER')
+- `status` (VARCHAR, Default: 'Active')
+- `created_at` (TIMESTAMPTZ)
+- `updated_at` (TIMESTAMPTZ)
+- `deleted_at` (TIMESTAMPTZ, Soft Delete)
 
-## Troubleshooting
+### User Roles
 
-- **Port already in use:** Change the port in docker-compose.yml
-- **Build fails:** Make sure Docker is running and you have enough disk space
-- **API not responding:** Check if the container is running with `docker-compose ps`
+- `ROOT` - System administrator
+- `GENERAL_MANAGER` - General manager
+- `MANAGER` - Manager
+- `CUSTOMER` - Customer (default)
+- `WAITER` - Waiter
+- `COOK` - Cook
+- `BARMAN` - Barman
+- `CASH_REGISTER` - Cash register operator
 
-Happy learning! 🦀✨
+## 🔌 API Endpoints
+
+### Public Endpoints
+- `GET /health` - Health status
+- `POST /auth/register` - User registration
+- `POST /auth/login` - User login
+- `DELETE /auth/logout` - User logout
+
+### Protected Endpoints (Require Authentication)
+- `GET /users` - List all users
+- `GET /users/{id}` - Get user by ID
+- `POST /users` - Create new user
+- `PUT /users/{id}` - Update user
+- `DELETE /users/{id}` - Delete user (soft delete)
+
+### Example Requests
+
+#### Register User
+```bash
+curl -X POST http://localhost:3000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "password": "securepassword123",
+    "account_id": "550e8400-e29b-41d4-a716-446655440000",
+    "role": "CUSTOMER"
+  }'
+```
+
+#### Login User
+```bash
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john@example.com",
+    "password": "securepassword123"
+  }'
+```
+
+#### Access Protected Route
+```bash
+# Use the session cookie returned from login
+curl -X GET http://localhost:3000/users \
+  -H "Cookie: connect.sid=your-session-id"
+```
+
+#### Health Check
+```bash
+curl http://localhost:3000/health
+```
+
+## 🔧 Configuration
+
+Environment variables (see `.env.example`):
+
+```bash
+# Server
+HOST=0.0.0.0
+PORT=3000
+
+# Database
+DATABASE_HOST=postgres
+DATABASE_PORT=5432
+DATABASE_NAME=rust_api
+DATABASE_USER=postgres
+DATABASE_PASSWORD=your-secure-password-change-in-production
+
+# Session Configuration
+SESSION_SECRET=your-super-secret-session-key-change-in-production
+REDIS_URL=redis://redis:6379
+SESSION_COOKIE_NAME=connect.sid
+SESSION_COOKIE_DOMAIN=.table-tap.app
+SESSION_COOKIE_SECURE=false
+SESSION_COOKIE_SAME_SITE=lax
+SESSION_MAX_AGE_SECONDS=86400
+
+# Logging
+RUST_LOG=info
+```
+
+## 🐳 Docker Services
+
+### PostgreSQL
+- **Image**: postgres:16-alpine
+- **Port**: 5432
+- **Database**: rust_api
+- **User**: postgres
+- **Health Check**: Built-in
+
+### Redis
+- **Image**: redis:7-alpine
+- **Port**: 6379
+- **Purpose**: Session storage
+- **Health Check**: Built-in
+
+### API
+- **Port**: 3000
+- **Dependencies**: PostgreSQL, Redis
+- **Health Check**: Built-in
+
+## 🔒 Security Features
+
+- **Session Authentication**: HTTP-only cookies with Redis backend
+- **Password Hashing**: Argon2 with random salts
+- **Input Validation**: Comprehensive validation with custom error messages
+- **Type Safety**: Compile-time SQL injection prevention
+- **Error Handling**: Secure error responses without sensitive data exposure
+- **Container Security**: Non-root user in containers
+- **CSRF Protection**: SameSite cookie attribute
+- **XSS Protection**: HttpOnly cookie attribute
+
+## 🚀 Production Deployment
+
+### Environment Setup
+1. Set strong `SESSION_SECRET`
+2. Configure production database URL
+3. Set production Redis URL
+4. Configure secure cookie settings
+5. Set appropriate log levels
+6. Configure connection pool settings
+
+### Docker Production
+```bash
+# Build production images
+docker compose build
+
+# Deploy
+docker compose up -d
+```
+
+## 🧪 Testing
+
+```bash
+# Run tests
+cargo test
+
+# Run with output
+cargo test -- --nocapture
+
+# Test with Docker
+docker compose up --build -d
+# Then test endpoints with curl
+```
+
+## 📊 Monitoring
+
+- **Health Check**: `GET /health`
+- **Service Health**: All services have health checks
+- **Logging**: Structured JSON logs
+- **Metrics**: Ready for Prometheus integration
+- **Tracing**: Request tracing support
+
+## 🔄 Development Workflow
+
+1. **Start Services**: `docker compose up --build -d`
+2. **Make Changes**: Edit code
+3. **Test**: `cargo test`
+4. **Run**: `cargo run` (or auto-reload with `cargo watch`)
+5. **Deploy**: `docker compose build && docker compose up -d`
+
+## 📚 Why This Architecture?
+
+### Session vs JWT Authentication
+
+**Session-based authentication** was chosen because:
+- ✅ **Security**: HTTP-only cookies prevent XSS attacks
+- ✅ **Server Control**: Can invalidate sessions server-side
+- ✅ **Scalability**: Redis-backed sessions scale horizontally
+- ✅ **Simplicity**: Easier to implement and debug
+- ✅ **Compatibility**: Matches existing Node.js implementation
+
+### SeaORM vs SQLx vs Diesel
+
+**SeaORM** was chosen for 2025 because:
+- ✅ **Async-first**: Built for modern async Rust
+- ✅ **Type Safety**: Compile-time query verification
+- ✅ **Clean API**: Intuitive, developer-friendly
+- ✅ **Active Development**: Regular updates and improvements
+- ✅ **Performance**: Excellent performance characteristics
+- ✅ **Migration System**: Built-in migration management
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+## 🆘 Troubleshooting
+
+### Common Issues
+
+**Database Connection Failed**
+```bash
+# Check if PostgreSQL is running
+docker compose ps
+
+# Check logs
+docker compose logs postgres
+```
+
+**Redis Connection Failed**
+```bash
+# Check if Redis is running
+docker compose ps
+
+# Check logs
+docker compose logs redis
+```
+
+**Session Issues**
+```bash
+# Check Redis connectivity
+docker compose exec redis redis-cli ping
+
+# Clear Redis data
+docker compose down -v
+docker compose up --build -d
+```
+
+**Build Errors**
+```bash
+# Clean and rebuild
+cargo clean
+cargo build
+```
+
+## 📞 Support
+
+- Create an issue for bugs
+- Start a discussion for questions
+- Check the documentation
+
+---
+
+**Built with ❤️ using Rust, Axum, SeaORM, and Redis**

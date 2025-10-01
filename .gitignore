@@ -42,6 +42,7 @@ logs/
 tmp/
 temp/
 *.tmp
+node-example/
 
 # Coverage reports
 tarpaulin-report.html
